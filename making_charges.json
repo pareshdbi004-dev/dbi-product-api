@@ -1,0 +1,57 @@
+{
+  "EX-08": {
+    "weight": 0.035,
+    "diff": 186,
+    "item": "Extension Nipple Heavy L & Key 1\" to 3\""
+  },
+  "EX-13": {
+    "weight": 0.035,
+    "diff": 206,
+    "item": "Extension Nipple Heavy L & Key 4\" & 6\""
+  },
+  "EX-15": {
+    "weight": 0.04,
+    "diff": 201,
+    "item": "Extension Nipple Special L & Key 1\" to 3\""
+  },
+  "EX-20": {
+    "weight": 0.04,
+    "diff": 227,
+    "item": "Extension Nipple Special L & Key 4\" & 6\""
+  },
+  "EX-HD1": {
+    "weight": 0.05,
+    "diff": 227,
+    "item": "Extension Nipple HD"
+  },
+  "EX-HD2": {
+    "weight": 0.05,
+    "diff": 227,
+    "item": "Extension Nipple HD 4\" & 6\""
+  },
+  "HX-01": {
+    "weight": 0.036,
+    "diff": 197,
+    "item": "Hex Nipple Heavy 1/2\""
+  },
+  "HX-02": {
+    "weight": 0.05,
+    "diff": 197,
+    "item": "Hex Nipple Special 1/2\""
+  },
+  "HX-03": {
+    "weight": 0.054,
+    "diff": 451,
+    "item": "Hex Nipple 1/2\"x3/4\""
+  },
+  "HX-04": {
+    "weight": 0.057,
+    "diff": 451,
+    "item": "Hex Nipple 3/4\""
+  },
+  "HX-05": {
+    "weight": 0.078,
+    "diff": 504,
+    "item": "Hex Nipple 1\""
+  }
+}
