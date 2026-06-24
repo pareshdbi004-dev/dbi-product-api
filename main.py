@@ -4,6 +4,7 @@ Provides deterministic, guaranteed-accurate product/price/weight lookup.
 No RAG, no hallucination risk — direct database query.
 """
 import json
+import math
 import re
 from difflib import SequenceMatcher
 from fastapi import FastAPI, Query
@@ -20,6 +21,17 @@ app.add_middleware(
 
 with open("products_db.json", encoding="utf-8") as f:
     PRODUCTS = json.load(f)
+
+try:
+    with open("making_charges.json", encoding="utf-8") as f:
+        MAKING_CHARGES = json.load(f)
+except FileNotFoundError:
+    MAKING_CHARGES = {}
+
+# Dynamic pricing formula constants (Extension Nipple & Hex Nipple, per Pareshbhai's cost sheet)
+SALES_MARGIN_PCT = 0.0204
+CD_PCT = 0.0504
+EXTRA_BULK_DISCOUNT_PCT = 0.02  # for 15-30+ box orders per size
 
 DISCOUNT_RULES = {
     # (part hint via collection name patterns could be added; default 44%)
@@ -192,6 +204,62 @@ def price_with_discount(
         "mrp": p["mrp"],
         "net_rate_44pct": net_rate(p["mrp"], part04=part04, rackbolt=rackbolt),
     }
+
+
+@app.get("/dynamic_net_rate")
+def dynamic_net_rate(
+    code: str = Query(..., description="Exact product code, e.g. 'EX-08', 'HX-03'. Currently supported only for Extension Nipple and Hex Nipple items."),
+    brass_rate: float = Query(..., description="Today's brass rate in Rs per kg, e.g. 850"),
+    boxes: int = Query(None, description="Number of boxes per size the dealer is ordering, if mentioned. 15-30+ boxes per size qualifies for an extra 2% discount."),
+):
+    """
+    Calculates the dynamic, brass-rate-linked net rate for items that use the
+    making-charge cost formula (currently: Extension Nipple, Hex Nipple).
+    Formula: TOTAL(per kg) = brass_rate + making_charge(DIFF)
+             PER_PCS = TOTAL * weight_kg
+             + sales margin 2.04% -> subtotal
+             + CD 5.04% -> FINAL (rounded up to nearest rupee)
+    If boxes given and >= 15, an additional 2% bulk discount is applied on FINAL.
+    """
+    code_n = code.strip().upper()
+    if code_n not in MAKING_CHARGES:
+        return {
+            "status": "not_supported",
+            "message": f"Dynamic brass-rate pricing is not yet set up for code '{code}'. Use the standard lookup_product_price function instead, or say the technical-team fallback line.",
+        }
+
+    mc = MAKING_CHARGES[code_n]
+    weight = mc["weight"]
+    diff = mc["diff"]
+
+    total_per_kg = brass_rate + diff
+    per_pcs = total_per_kg * weight
+    sales_margin = per_pcs * SALES_MARGIN_PCT
+    subtotal = per_pcs + sales_margin
+    cd_amount = subtotal * CD_PCT
+    final_with_cd = subtotal + cd_amount
+    final_rounded = round(final_with_cd)
+
+    result = {
+        "status": "ok",
+        "code": code_n,
+        "item": mc["item"],
+        "brass_rate_used": brass_rate,
+        "per_pcs_base": round(per_pcs, 2),
+        "net_rate_with_cd": final_rounded,
+        "note": "This is the net rate WITH 5% Cash Discount (advance payment, full carton, basket >= Rs 50,000 pre-GST). Without these conditions, quote per_pcs_base + sales margin only (no CD).",
+    }
+
+    if boxes is not None and boxes >= 15:
+        bulk_discount = final_rounded * EXTRA_BULK_DISCOUNT_PCT
+        result["bulk_discount_applied"] = True
+        result["boxes"] = boxes
+        result["final_rate_with_bulk_discount"] = round(final_rounded - bulk_discount, 2)
+    else:
+        result["bulk_discount_applied"] = False
+        result["note_bulk"] = "15-30+ boxes per size required for additional 2% discount."
+
+    return result
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
